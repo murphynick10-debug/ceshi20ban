@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>45题深度解码：你的「九型人格」原型</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* * ===========================================
+         * CSS 核心样式 (九型人格专业版)
+         * ===========================================
+         */
+        :root {
+            --bg-color: #FBFBF9;
+            --primary-color: #6D8A9E; /* 更沉稳的莫兰迪蓝 */
+            --accent-color: #B58A8F; /* 更柔和的茱萸粉 */
+            --text-color: #3D3D3D;
+            --light-gray: #F0F0F0;
+            --border-color: #EAEAEA;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 750px; /* 大气布局 */
+            width: 100%;
+            background-color: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+            padding: 40px;
+            box-sizing: border-box;
+            transition: opacity 0.5s ease;
+        }
+
+        /* 1. 欢迎屏幕 */
+        #start-screen { text-align: center; }
+        #start-screen h1 {
+            color: var(--accent-color);
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+        #start-screen p {
+            font-size: 17px;
+            line-height: 1.8;
+            margin-bottom: 35px;
+            color: #555;
+        }
+        .start-btn {
+            display: inline-block;
+            width: 60%;
+            padding: 18px;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(181, 138, 143, 0.3);
+        }
+        .start-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(181, 138, 143, 0.4);
+        }
+
+        /* 2. 答题屏幕 */
+        #quiz-screen { display: none; }
+        #progress-container {
+            width: 100%;
+            background-color: var(--light-gray);
+            border-radius: 10px;
+            height: 12px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        #progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: var(--primary-color);
+            border-radius: 10px;
+            transition: width 0.4s ease;
+        }
+        #progress-text {
+            text-align: center;
+            font-size: 16px;
+            color: var(--primary-color);
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+        #question-container { min-height: 250px; }
+        .question-text {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 30px;
+            line-height: 1.6;
+            text-align: center;
+        }
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+        /* (这是九型人格的新4选项) */
+        .option-btn {
+            display: block;
+            width: 100%;
+            padding: 18px;
+            background-color: #FBFBF9;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 17px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+            text-align: left;
+        }
+        .option-btn:hover {
+            background-color: #f0f4f7;
+            border-color: var(--primary-color);
+            transform: scale(1.01);
+        }
+        .fade-out { opacity: 0; transition: opacity 0.3s ease-out; }
+        .fade-in { opacity: 1; transition: opacity 0.3s ease-in; }
+
+        /* 3. 结果屏幕 */
+        #result-screen { display: none; text-align: left; }
+        #result-title {
+            color: var(--accent-color);
+            font-size: 28px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .result-section {
+            background-color: #FDFDFB;
+            border: 1px solid #f0f0f0;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+        .result-section h3 {
+            color: var(--primary-color);
+            font-size: 20px;
+            font-weight: 600;
+            border-bottom: 2px solid var(--light-gray);
+            padding-bottom: 12px;
+            margin-top: 0;
+        }
+
+        /* 3.1 雷达图 (Chart.js 容器) */
+        #radar-chart-container {
+            width: 100%;
+            max-width: 450px; /* 适配9个点 */
+            margin: 20px auto;
+            position: relative;
+        }
+
+        /* 3.2 分数条 (来自图片) */
+        .score-bar-list { padding: 0; list-style: none; }
+        .score-bar-item {
+            display: grid;
+            /* 1:1 复刻图片样式 */
+            grid-template-columns: 100px 1fr 50px 100px;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+        .score-bar-label { font-weight: 600; }
+        .score-bar-bg {
+            width: 100%;
+            height: 12px;
+            background: var(--light-gray);
+            border-radius: 6px;
+        }
+        .score-bar-fill {
+            height: 100%;
+            border-radius: 6px;
+            background-color: var(--primary-color);
+            width: 0%; /* JS控制 */
+            transition: width 1s ease-out;
+        }
+        .score-bar-value { font-weight: 600; color: var(--accent-color); }
+        .score-bar-desc { color: #666; font-size: 14px;}
+
+        /* 3.3 深度报告 */
+        .result-section p, .result-section ul {
+            font-size: 17px;
+            line-height: 1.8;
+            color: #444;
+        }
+        .result-section ul { padding-left: 25px; }
+        .result-section li { margin-bottom: 12px; }
+        
+        .restart-btn {
+            display: block;
+            width: 50%;
+            margin: 40px auto 10px auto;
+            padding: 16px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .restart-btn:hover {
+            background: var(--accent-color);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+
+        <div id="start-screen">
+            <h1>✨ 45题深度解码：你的「九型人格」原型 ✨</h1>
+            <p>这是一个专业的九型人格分析。我们将通过45道专业题目，为你绘制专属的“人格雷达图”和分数表，并深度匹配你的核心原型（完美型、助人型、成就型...），为你提供一份6模块的深度报告。</p>
+            <p>准备好认识真正的自己了吗？</p>
+            <button class="start-btn" onclick="startQuiz()">开始探索 (45题)</button>
+        </div>
+
+        <div id="quiz-screen">
+            <div id="progress-text"></div>
+            <div id="progress-container">
+                <div id="progress-bar"></div>
+            </div>
+            <div id="question-container">
+                </div>
+        </div>
+
+        <div id="result-screen">
+            <h2 id="result-title"></h2>
+
+            <div class="result-section">
+                <h3>你的九型人格雷达图</h3>
+                <div id="radar-chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+
+            <div class="result-section">
+                <h3>各项原型分数</h3>
+                <ul class="score-bar-list" id="score-bar-list">
+                    </ul>
+            </div>
+
+            <div class="result-section">
+                <h3 id="report-title-1"> </h3>
+                <div id="result-description"></div>
+            </div>
+            
+            <div class="result-section">
+                <h3 id="report-title-2"> </h3>
+                <div id="result-love"></div>
+            </div>
+            
+            <div class="result-section">
+                <h3 id="report-title-3"> </h3>
+                <div id="result-work"></div>
+            </div>
+
+            <div class="result-section">
+                <h3 id="report-title-4"> </h3>
+                <div id="result-kit"></div>
+            </div>
+
+            <button class="restart-btn" onclick="restartQuiz()">重新测试一次</button>
+        </div>
+    </div>
+
+<script>
+// ===========================================
+// JavaScript 核心逻辑 (九型人格终版)
+// ===========================================
+
+// 1. 题库 (共45题, 9种类型, 每种5题)
+// 计分: "非常不符"(1), "不太相符"(2), "比较相符"(3), "非常相符"(4)
+const questions = [
+    // --- Type 1: 完美型 ---
+    { q: "我对我自己和他人的要求都很高，力求每件事都“正确”。", type: 1 },
+    { q: "我很难容忍错误和混乱，总是在想办法“改进”事物。", type: 1 },
+    { q: "我内心有一个很强的“批评家”，总是在评判对错。", type: 1 },
+    { q: "“原则”和“责任”对我来说非常重要。", type: 1 },
+    { q: "我经常感到“应该”这样做或“不应该”那样做。", type: 1 },
+
+    // --- Type 2: 助人型 ---
+    { q: "我非常擅长体察他人的需求，并会主动提供帮助。", type: 2 },
+    { q: "我渴望被爱和被需要，他人的认可能让我感到有价值。", type: 2 },
+    { q: "我很难拒绝别人的请求，常常会忽略自己的需求。", type: 2 },
+    { q: "我的人际关系对我来说至关重要。", type: 2 },
+    { q: "我倾向于通过“付出”来获得他人的“喜爱”。", type: 2 },
+
+    // --- Type 3: 成就型 ---
+    { q: "我是一个目标导向的人，非常有执行力。", type: 3 },
+    { q: "我非常在意自己的“形象”和“成就”，渴望成功。", type: 3 },
+    { q: "我善于“扮演”不同的角色，以适应环境并获得认可。", type: 3 },
+    { q: "对我来说，“忙碌”和“高效”是家常便饭。", type: 3 },
+    { q: "我害怕“失败”，失败会让我觉得自己一无是处。", type: 3 },
+
+    // --- Type 4: 自我型 ---
+    { q: "我感觉自己是独一无二的，和别人“不一样”。", type: 4 },
+    { q: "我非常敏感，情绪起伏比较大，渴望“真我”。", type: 4 },
+    { q: "我常常陷入对“美”和“情感”的深度体验中。", type: 4 },
+    { q: "我有一种“缺失感”，总觉得别人有而我没有。", type: 4 },
+    { q: "我讨厌“平庸”和“肤浅”，渴望深刻的灵魂共鸣。", type: 4 },
+
+    // --- Type 5: 观察型 ---
+    { q: "我更喜欢在旁边“观察”，而不是参与其中。", type: 5 },
+    { q: "我需要大量的“独处”时间来思考和补充能量。", type: 5 },
+    { q: "在行动前，我需要“收集”大量的信息和知识。", type: 5 },
+    { q: "我害怕自己的“资源”（时间、精力）被他人耗尽。", type: 5 },
+    { q: "我不太擅长处理“情感”，更依赖“逻辑”和“分析”。", type: 5 },
+
+    // --- Type 6: 忠诚型 ---
+    { q: "我总是做“最坏的打算”，脑中有很多“万一...怎么办？”", type: 6 },
+    { q: "我非常看重“安全感”和“忠诚”。", type: 6 },
+    { q: "我对“权威”的态度很矛盾，有时依赖，有时反抗。", type: 6 },
+    { q: "在做决定时，我常常“犹豫不决”，需要征求他人意见。", type: 6 },
+    { q: "我是一个“尽职尽责”的人，但内心常常感到“焦虑”。", type: 6 },
+
+    // --- Type 7: 活泼型 ---
+    { q: "我总是很“乐观”，喜欢“新奇”和“有趣”的体验。", type: 7 },
+    { q: "我讨厌“痛苦”和“无聊”，总是在寻找“快乐”。", type: 7 },
+    { q: "我的兴趣爱好非常“广泛”，什么都想试一试。", type: 7 },
+    { q: "我总是让自己保持“忙碌”，有很多计划和活动。", type: 7 },
+    { q: "我害怕被“束缚”和“限制”，“自由”对我最重要。", type: 7 },
+
+    // --- Type 8: 控制型 ---
+    { q: "我非常“直接”和“强势”，喜欢“掌控”一切。", type: 8 },
+    { q: "我害怕“脆弱”和“被控制”，会隐藏自己柔软的一面。", type: 8 },
+    { q: "我天生有“保护欲”，会为我关心的人“出头”。", type: 8 },
+    { q: "“公平”和“正义”对我非常重要，我讨厌“虚伪”。", type: 8 },
+    { q: "我宁愿“对抗”和“冲突”，也不愿“妥协”。", type: 8 },
+
+    // --- Type 9: 和平型 ---
+    { q: "我非常“随和”，不喜欢“冲突”，渴望“和谐”。", type: 9 },
+    { q: "我常常“附和”别人的意见，很难说出“不”。", type: 9 },
+    { q: "我很容易“分心”，会用一些琐事来“拖延”重要任务。", type: 9 },
+    { q: "我擅长“倾听”，能理解和包容不同的观点。", type: 9 },
+    { q: "我常常“忽视”自己的真正需求，去“迎合”他人。", type: 9 }
+];
+
+// 2. 九型人格的完整报告 (9套 x 6模块)
+const allReports = {
+    1: {
+        title: "✨ 你的原型：Type 1 完美型 (The Reformer) ✨",
+        description: `<p>你是“追求正确”的理想主义者。你内心有一把“标尺”，时刻衡量着自己和这个世界。</p><p>你正直、自律、有强烈的责任心，总是力求“精益求精”。你渴望“改进”一切，让世界变得更“正确”。在你眼中，没有“差不多”，只有“对”与“错”。</p><p>你最大的挑战，是内心的“超级批评家”。它让你对自己和他人都过于严苛，让你害怕“犯错”，活在“应该”的压力中。你常常感到“愤怒”，因为现实总是不如你“应该”的那么完美。</p>`,
+        love: `<p>你是“可靠”的伴侣。在感情中，你依然追求“正确”和“责任”。</p><p>你不会轻易承诺，但一旦承诺，就会“尽职尽责”。你用“改进对方”和“让生活更有序”来表达爱。你需要一个能理解你“高标准”的伴侣，但你也必须学会，爱不是“改造”，而是“接纳”对方的不完美。</p>`,
+        work: `<p>你是“质量的保证”。你天生适合做“质检”、“审计”、“法律”或任何需要“高标准”和“细节”的工作。</p><p>你一丝不苟，是老板最放心的员工。但你的“完美主义”也可能导致“拖延”（怕做不好）或“批评”同事。你需要学会“授权”和“抓大放小”。</p>`,
+        kit: `<ul><li><strong>[接纳“已足够好”]</strong>：不是所有事都值100分。练习说“80分，已经足够好了”，然后放手。</li><li><strong>[“非黑即白”的放松]</strong>：允许“灰色地带”的存在。去体验，不要评判。</li><li><strong>[管理“愤怒”]</strong>：当你感到愤怒时，问自己：“我是否又在用‘应该’来要求世界了？”</li></ul>`
+    },
+    2: {
+        title: "✨ 你的原型：Type 2 助人型 (The Helper) ✨",
+        description: `<p>你是“给予爱”的奉献者。你拥有超强的同理心，天生就能“感知”到他人的需求，并主动伸出援手。</p><p>你温暖、慷慨、富有“人情味”。你渴望“被爱”和“被需要”，你存在的价值感，往往来自于“帮助”他人并获得“感谢”。你擅长建立人际关系，是朋友圈里的“小太阳”。</p><p>你最大的挑战，是“忽视自己”。你如此专注于“付出”，以至于常常忘记自己的需求和底线。你害怕“被拒绝”，甚至会无意识地用“帮助”去“索取”他人的情感依赖。</p>`,
+        love: `<p>你是“滋养型”伴侣。你擅长营造“家”的温暖，把对方照顾得无微不至。</p><p>你渴望和谐、稳定的长期关系。你非常在意伴侣的感受，是完美的“倾听者”。但你必须警惕“过度付出”，这会让你“委屈”，也会让对方“窒息”。学会“索取”，关系才能平衡。</p>`,
+        work: `<p>你是“团队粘合剂”。你是天生的HR、教师、公关或团队Leader。</p><p>你擅长调动情绪、凝聚人心。你关心“人”胜过关心“事”。你最大的价值是建立一个“有爱”的团队。但你需要警惕“公私不分”和“耳根子软”，在需要做艰难决定时会非常痛苦。</p>`,
+        kit: `<ul><li><strong>[需求自检]</strong>：在为别人做事之前，停3秒钟问自己：“这是他真的需要，还是我‘觉得’他需要？”</li><li><strong>[学会说“不”]</strong>：拒绝，不等于“你不爱他”。你的能量很宝贵，请先满足自己。</li><li><strong>[练习“被服务”]</strong>：允许自己“索取”和“接受”他人的帮助。这不叫“麻烦”，这叫“连接”。</li></ul>`
+    },
+    3: {
+        title: "✨ 你的原型：Type 3 成就型 (The Achiever) ✨",
+        description: `<p>你是“追求价值”的实干家。你就像一个天生的“变色龙”，能敏锐地察觉到环境需要你成为什么样的人，然后“高效”地活成那个“成功”的模样。</p><p>你目标导向、精力充沛、光芒四射。你相信“爱拼才会赢”，你用“成就”和“标签”来定义自己。你非常在意“形象”，渴望被“仰慕”和“认可”。</p><p>你最大的挑战，是“迷失真我”。你太习惯于“扮演”成功的角色，以至于你分不清“真实的自己”和“你的形象”。你害怕“停下来”，因为一旦停下，“价值感”就消失了。</p>`,
+        love: `<p>你是“Power Couple”的践行者。你寻找的是“队友”，而不是“宠物”。</p><p>你希望你的伴侣和你一样目标明确、积极上进，能为你的“形象”加分。你用“共同进步”来表达爱。但你需要学会“摘下面具”，爱是“接纳”你最真实、最不完美的那一面。</p>`,
+        work: `<p>你是“天生的CEO”。你就是来做“管理”和“决策”的。你擅长指挥、分配任务和推进时间线。</p><p>你无法忍受“低效”和“混乱”。你以“结果”为导向，是老板最爱的员工，也是下属“最怕”的领导。你最大的成长，是学会“对人不对事”，多一些“同理心”。</p>`,
+        kit: `<ul><li><strong>[价值“内在化”]</strong>：你的价值，不等于你的“成就”或“头衔”。练习“无所事事”，并告诉自己“我依然有价值”。</li><li><strong>[区分“真我”与“形象”]</strong>：每天问自己：“这件事，是‘我’想做，还是‘我的形象’需要我做？”</li><li><strong>[拥抱“失败”]</strong>：失败只是一个“反馈”，不是对你“整个人”的“判决”。</li></ul>`
+    },
+    4: {
+        title: "✨ 你的原型：Type 4 自我型 (The Individualist) ✨",
+        description: `<p>你是“追求独特”的艺术家。你拥有一个极其“敏感”和“丰富”的内心世界，你用“灵魂”在感知这个世界的美与痛。</p><p>你浪漫、有创造力、渴望“真我”。你讨厌“平庸”，总觉得自己和“世俗”格格不入。你常常沉浸在“忧郁”和“缺失感”中，因为你总觉得“最好的”永远在“别处”。</p><p>你最大的挑战，是“情绪内耗”。你太沉浸在自己的“感觉”里，容易“疏离”现实。你“嫉妒”那些拥有你所“缺失”的平凡幸福的人，但你又“不屑”于那种“平庸”。</p>`,
+        love: `<p>你是“灵魂伴侣”的忠实追求者。你渴望的不是物质或形式，而是“懂”。</p><p>你追求“戏剧性”和“深刻”的连接，平凡的“过日子”让你窒息。你“若即若离”，既渴望被“拯救”，又害怕被“吞噬”。你需要一个能“接住”你所有情绪，并欣赏你“独特”的人。</p>`,
+        work: `<p>你是“独立的创意者”。你极其厌恶僵化的流程和“办公室政治”。</p><p>你适合在自由、宽松、有创造性的环境中工作（如艺术、写作、咨询）。你不是天生的管理者，而是那个提供“颠覆性”灵感的幕后高手。给你足够的空间，你能爆发出惊人的创造力。</p>`,
+        kit: `<ul><li><strong>[“入世”练习]</strong>：从“感觉”走向“行动”。不要只“想”，去“做”一件具体的小事，比如洗碗。</li><li><strong>[停止“比较”]</strong>：你就是你，没有“缺失”。你所“嫉妒”的“平凡”，也许是你此刻最该珍惜的。</li><li><strong>[情绪“标签化”]</strong>：当你情绪上头时，不要“沉浸”，而是“观察”它。告诉自己：“哦，‘忧郁’又来了。”</li></ul>`
+    },
+    5: {
+        title: "✨ 你的原型：Type 5 观察型 (The Investigator) ✨",
+        description: `<p>你是“追求真知”的思考者。你就像一个“局外人”，站在世界的边缘，用“逻辑”和“分析”来观察一切。</p><p>你极度“独立”，渴望“知识”，害怕“无知”。你认为“情感”是混乱的，而“信息”才是力量。你最大的“资源”是你的时间和精力，你必须保护它们不被外界“侵扰”。</p><p>你最大的挑战，是“与世隔绝”。你用“思考”代替了“行动”，用“观察”代替了“体验”。你害怕“情感”会耗尽你的能量，所以你把自己“隔离”在一个安全的“思想堡垒”里。</p>`,
+        love: `<p>你是“精神独立”的伴侣。你不太需要“腻歪”，更看重“智力上的匹配”和“思维的同步”。</p><p>你不太会表达情感，甚至显得有点“冷漠”，但你很真诚。你需要大量的“个人空间”，你的伴侣必须“尊重”你的“边界”。你需要学会的是，“分享”情感，并不会“耗尽”你。</p>`,
+        work: `<p>你是“顶级的分析师”。你天生就是解决难题的。你适合当“技术专家”或“架构师”。</p><p>你讨厌繁琐的流程和管理。你不在乎“晋升”，只在乎“这个问题有没有趣”。在灵活、自主的环境下（如科研、编程、金融分析），你的逻辑能力无人能及。</p>`,
+        kit: `<ul><li><strong>[“行动”实验]</strong>：不要等到“完全准备好”。你的知识已经够用了，试着“先行动，再思考”。</li><li><strong>[能量“开源”]</strong>：“付出”不等于“耗竭”，有时“连接”反而能“充电”。试着主动分享一个小观点。</li><li><strong>[练习“感受”]</strong>：不要只“分析”你的情绪，试着“体会”它。问自己：“我身体哪里有感觉？”</li></ul>`
+    },
+    6: {
+        title: "✨ 你的原型：Type 6 忠诚型 (The Loyalist) ✨",
+        description: `<p>你是“追求安全”的怀疑论者。你的大脑就像一个“预警系统”，时刻扫描着环境中“潜在的危险”，并做着“最坏的打算”。</p><p>你尽职尽责、考虑周全、极度“忠诚”。你渴望“安全感”和“确定性”。你对“权威”既“依赖”又“怀疑”。你总是在“犹豫”，因为你害怕“选错”带来的“失控”。</p><p>你最大的挑战，是“内心的焦虑”。你活在“万一...怎么办？”的“恐惧”中，很难“相信”自己。你用“怀疑”来保护自己，但也因此“错过”了行动的最佳时机。</p>`,
+        love: `<p>你是“试探型”的伴侣。你非常“忠诚”，但也需要120%的“安全感”。</p><p>你会不断“测试”伴侣的“忠诚度”。你渴望“确定性”，但你又天生“怀疑”一切。你需要一个非常“坚定”和“透明”的伴侣。你需要学会的是“信任”——信任对方，更要信任“你自己的选择”。</p>`,
+        work: `<p>你是“危机的预言家”。你天生适合做“风控”、“法务”或“安全”相关的工作。</p><p>你总能看到别人看不到的“隐患”，是团队的“刹车片”。但你的“犹豫”和“悲观”可能会阻碍团队前进。你需要“相信”你的团队，也需要“相信”你自己。</p>`,
+        kit: `<ul><li><strong>[“最坏打算”的终点]</strong>：当“万一”的想法出现时，不要停下。问自己：“如果最坏的发生了，我能怎么办？”（你会发现你总有办法）</li><li><strong>[信任“自己”]</strong>：你的“焦虑”只是一个“提醒”，不是“事实”。练习“自我授权”，告诉自己：“我能搞定”。</li><li><strong>[行动破“疑”]</strong>：不要在“A还是B”中内耗。随便选一个，然后去“修正”它。</li></ul>`
+    },
+    7: {
+        title: "✨ 你的原型：Type 7 活泼型 (The Enthusiast) ✨",
+        description: `<p>你是“追求快乐”的冒险家。你就像一个“孩子”，对这个世界充满了“好奇”和“热情”，总是在“新奇”的体验中“飞翔”。</p><p>你乐观、有趣、充满“可能性”。你讨厌“无聊”和“痛苦”，你的大脑总是在高速运转，寻找“下一个”好玩的事。你害怕“错过”，所以你什么都想“要”。</p><p>你最大的挑战，是“逃避深度”。你用“快乐”和“忙碌”来“填满”自己，以“逃避”内心的“焦虑”和“痛苦”。你“三分钟热度”，因为“坚持”意味着要面对“枯燥”。</p>`,
+        love: `<p>你是“热烈的体验者”。你的爱像烟花一样灿烂，和你在一起永远不会无聊。</p><p>你追求“新鲜感”和“激情”，但也因此容易“上头快，下头也快”。你非常需要被“看见”和“肯定”。你需要一个能欣赏你的热情，又能给你带来“稳定感”的伴侣。</p>`,
+        work: `<p>你是“灵感发动机”。你天生适合做“与人打交道”的创意工作（如公关、市场、策划）。</p><p>你讨厌枯燥的重复劳动，你的价值在于“从0到1”的创意爆发。但你可能缺乏“从1到100”的耐心。你需要一个J型（计划型）队友来帮你落地执行。</p>`,
+        kit: `<ul><li><strong>[学会“做减法”]</strong>：你的“什么都想要”等于“什么都得不到”。选“一件事”，并“坚持”做完它。</li><li><strong>[拥抱“无聊”]</strong>：你总在寻找刺激。试着忍受10分钟的“无聊”，你最棒的创意往往在此时诞生。</li><li><strong>[面对“痛苦”]</strong>：“快乐”不是“没有痛苦”，而是“穿越”痛苦。允许自己“难过”一会儿。</li></ul>`
+    },
+    8: {
+        title: "✨ 你的原型：Type 8 控制型 (The Challenger) ✨",
+        description: `<p>你是“追求力量”的掌控者。你天生就是“大女主”，气场强大，充满了“生命力”和“掌控欲”。</p><p>你果断、直接、非黑即白。你相信“强者”的逻辑，你渴望“控制”环境，以“保护”自己和“保护”你爱的人。你讨厌“虚伪”，宁愿“冲突”也不愿“妥协”。</p><p>你最大的挑战，是“隐藏脆弱”。你用“愤怒”和“坚硬”的外壳来包裹“柔软”的内心。你害怕“被控制”和“被背叛”，所以你从不“示弱”。</p>`,
+        love: `<p>你是“霸道总裁”式的伴侣。你寻找的是“队友”，不是“下属”。</p><p>你用“保护”和“掌控”来表达爱。你“慕强”，也希望对方能“接住”你的“对抗”。你需要的不是“顺从”，而是一个能和你“并肩作战”的“灵魂强者”。你需要学会的是“温柔”。</p>`,
+        work: `<p>你是“天生的CEO”。你就是来做“管理”和“决策”的。你擅长指挥、分配任务和推进时间线。</p><p>你无法忍受“低效”和“混乱”。你以“结果”为导向，是老板最爱的员工，也是下属“最怕”的领导。你最大的成长，是学会“对人不对事”，多一些“同理心”。</p>`,
+        kit: `<ul><li><strong>[“愤怒”的B面]</strong>：当你“愤怒”时，问自己：“我是否在害怕‘失去控制’？” 你的愤怒，往往来自你的“在乎”和“恐惧”。</li><li><strong>[练习“示弱”]</strong>：“脆弱”不是“软弱”，而是“真诚”。试着说“我需要帮助”。</li><li><strong>[“0”或“100”]</strong>：你总是“用力过猛”。试着只用“70%”的力气去控制事情，留下30%的“空间”。</li></ul>`
+    },
+    9: {
+        title: "✨ 你的原型：Type 9 和平型 (The Peacemaker) ✨",
+        description: `<p>你是“追求和谐”的调停者。你就像“水”一样，随和、包容、安静，你天生就能“兼容”一切，让身边的人感到“舒服”。</p><p>你擅长“倾听”，讨厌“冲突”。你渴望“内心平静”和“外部和谐”。你总能看到“所有”的观点，所以你很难“站队”，也很难“做决定”。</p><p>你最大的挑战，是“忘记自己”。你太习惯于“迎合”他人和“平息”冲突，以至于你“压抑”了自己“真实”的需求和“愤怒”。你用“拖延”和“分心”来“逃避”那些“真正重要”但“可能引发冲突”的事情。</p>`,
+        love: `<p>你是“包容型”伴侣。你“岁月静好”，是关系中的“稳定器”。</p><p>你会“无条件”地支持伴侣。但你必须警惕“被动攻击”——因为你“不敢”正面冲突，所以你用“拖延”或“沉默”来“反抗”。你必须学会“表达”你“真实”的需求。</p>`,
+        work: `<p>你是“团队的润滑剂”。你在哪里，哪里就没有“办公室政治”。</p><p>你擅长“协调”和“支持”，是最好的“辅助”和“队友”。但你“害怕”做决定，也“害怕”承担“C位”的压力。你的“随和”可能会变成“没主见”。</p>`,
+        kit: `<ul><li><strong>[找到你的“不”]</strong>：你的“随和”不是“没有”。练习从“我都可以”变成“我更喜欢A”。</li><li><strong>[拥抱“健康冲突”]</strong>：“冲突”不等于“破裂”，而是“解决问题”的开始。你的“愤怒”是“有价值”的。</li><li><strong>[自我“唤醒”]</strong>：不要用“刷手机”或“做琐事”来麻痹自己。问自己：“我此刻‘真正’想做的是什么？”</li></ul>`
+    }
+};
+
+// 3. 全局变量
+let currentQuestionIndex = 0;
+// 9个类型的得分
+let scores = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 };
+let shuffledQuestions = [];
+let radarChartInstance = null; // 用于存放雷达图实例
+
+// 4. DOM 元素
+const startScreen = document.getElementById('start-screen');
+const quizScreen = document.getElementById('quiz-screen');
+const resultScreen = document.getElementById('result-screen');
+const progressText = document.getElementById('progress-text');
+const progressBar = document.getElementById('progress-bar');
+const questionContainer = document.getElementById('question-container');
+
+// 5. 核心函数
+
+// 随机打乱数组 (Fisher-Yates 算法)
+function shuffle(array) {
+    let currentIndex = array.length, randomIndex;
+    while (currentIndex != 0) {
+        randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex--;
+        [array[currentIndex], array[randomIndex]] = [
+            array[randomIndex], array[currentIndex]];
+    }
+    return array;
+}
+
+// 开始测试
+function startQuiz() {
+    shuffledQuestions = shuffle([...questions]); // 复制并打乱题库
+    currentQuestionIndex = 0;
+    scores = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 };
+    
+    startScreen.style.display = 'none';
+    resultScreen.style.display = 'none';
+    quizScreen.style.display = 'block';
+    
+    showQuestion();
+}
+
+// 显示题目 (逐题)
+function showQuestion() {
+    if (currentQuestionIndex >= shuffledQuestions.length) {
+        calculateResult();
+        return;
+    }
+
+    const q = shuffledQuestions[currentQuestionIndex];
+    
+    questionContainer.classList.remove('fade-in');
+    questionContainer.classList.add('fade-out');
+    
+    setTimeout(() => {
+        const progressPercent = ((currentQuestionIndex) / shuffledQuestions.length) * 100;
+        progressBar.style.width = progressPercent + '%';
+        progressText.innerText = `进度: ${currentQuestionIndex + 1} / ${shuffledQuestions.length}`;
+
+        // 4选项的计分
+        let optionsHTML = '<div class="options-grid">';
+        optionsHTML += `<button class="option-btn" onclick='selectAnswer(${q.type}, 4)'>非常相符</button>`;
+        optionsHTML += `<button class="option-btn" onclick='selectAnswer(${q.type}, 3)'>比较相符</button>`;
+        optionsHTML += `<button class="option-btn" onclick='selectAnswer(${q.type}, 2)'>不太相符</button>`;
+        optionsHTML += `<button class="option-btn" onclick='selectAnswer(${q.type}, 1)'>非常不符</button>`;
+        optionsHTML += '</div>';
+
+        questionContainer.innerHTML = `<p class="question-text">${q.q}</p>${optionsHTML}`;
+        
+        questionContainer.classList.remove('fade-out');
+        questionContainer.classList.add('fade-in');
+
+    }, 300);
+}
+
+// 选择答案
+function selectAnswer(type, value) {
+    scores[type] += value; // 累加分数
+
+    currentQuestionIndex++;
+    showQuestion();
+}
+
+// 计算并显示结果
+function calculateResult() {
+    // 1. 找到分数最高的人格类型
+    let maxScore = 0;
+    let maxType = 1;
+    for (let i = 1; i <= 9; i++) {
+        if (scores[i] > maxScore) {
+            maxScore = scores[i];
+            maxType = i;
+        }
+    }
+
+    const result = allReports[maxType];
+
+    // 2. 渲染6大模块 (100% 统一)
+    document.getElementById('result-title').innerText = result.title;
+    
+    // 动态修改报告标题
+    document.getElementById('report-title-1').innerText = `你的「${result.title.split('：')[1].split('(')[0].trim()}」深度灵魂画像`;
+    document.getElementById('report-title-2').innerText = `你的「${result.title.split('：')[1].split('(')[0].trim()}」亲密关系风格`;
+    document.getElementById('report-title-3').innerText = `你的「${result.title.split('：')[1].split('(')[0].trim()}」职场协作原型`;
+    document.getElementById('report-title-4').innerText = `你的「${result.title.split('：')[1].split('(')[0].trim()}」自保锦囊`;
+
+    document.getElementById('result-description').innerHTML = result.description;
+    document.getElementById('result-love').innerHTML = result.love;
+    document.getElementById('result-work').innerHTML = result.work;
+    document.getElementById('result-kit').innerHTML = result.kit;
+    
+    // 3. 渲染雷达图
+    renderRadarChart(scores);
+
+    // 4. 渲染分数条
+    renderScoreBars(scores);
+
+    // 5. 切换屏幕
+    quizScreen.style.display = 'none';
+    resultScreen.style.display = 'block';
+    window.scrollTo(0, 0); // 滚动到页面顶部
+}
+
+// 7. 渲染雷达图 (Chart.js)
+function renderRadarChart(scores) {
+    const ctx = document.getElementById('radarChart').getContext('2d');
+    
+    // 销毁旧图表（如果存在），防止重叠
+    if (radarChartInstance) {
+        radarChartInstance.destroy();
+    }
+
+    const labels = [
+        'T1:完美型', 'T2:助人型', 'T3:成就型',
+        'T4:自我型', 'T5:观察型', 'T6:忠诚型',
+        'T7:活泼型', 'T8:控制型', 'T9:和平型'
+    ];
+    const data = [
+        scores[1], scores[2], scores[3],
+        scores[4], scores[5], scores[6],
+        scores[7], scores[8], scores[9]
+    ];
+    
+    // 9题, 每题1-4分. 总分范围 5 - 20.
+    const maxScore = 20; 
+
+    radarChartInstance = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '你的人格原型分数',
+                data: data,
+                backgroundColor: 'rgba(181, 138, 143, 0.2)', // 茱萸粉
+                borderColor: 'rgba(181, 138, 143, 1)',
+                pointBackgroundColor: 'rgba(181, 138, 143, 1)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgba(181, 138, 143, 1)'
+            }]
+        },
+        options: {
+            scales: {
+                r: {
+                    min: 0,
+                    max: maxScore, // 最大值
+                    beginAtZero: true,
+                    angleLines: { color: '#EAEAEA' },
+                    grid: { color: '#EAEAEA' },
+                    pointLabels: {
+                        font: { size: 12, weight: 'bold' },
+                        color: '#3D3D3D'
+                    },
+                    ticks: {
+                        backdropColor: '#fff', // 防止数字和线条重叠
+                        color: '#666'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false // 不显示图例
+                }
+            }
+        }
+    });
+}
+
+// 8. 渲染分数条
+function renderScoreBars(scores) {
+    const container = document.getElementById('score-bar-list');
+    container.innerHTML = ''; // 清空
+    
+    const dimensions = [
+        { name: '完美型(T1)', score: scores[1] },
+        { name: '助人型(T2)', score: scores[2] },
+        { name: '成就型(T3)', score: scores[3] },
+        { name: '自我型(T4)', score: scores[4] },
+        { name: '观察型(T5)', score: scores[5] },
+        { name: '忠诚型(T6)', score: scores[6] },
+        { name: '活泼型(T7)', score: scores[7] },
+        { name: '控制型(T8)', score: scores[8] },
+        { name: '和平型(T9)', score: scores[9] }
+    ];
+    
+    const maxScore = 20; // 5题 x 4分
+    const minScore = 5;  // 5题 x 1分
+
+    dimensions.forEach(dim => {
+        // (分数-最低分) / (总范围) * 100
+        const percent = ((dim.score - minScore) / (maxScore - minScore)) * 100;
+        
+        let desc = "不太擅长";
+        if (dim.score >= 17) { desc = "非常擅长"; }
+        else if (dim.score >= 12) { desc = "有些擅长"; }
+        
+        const item = document.createElement('li');
+        item.className = 'score-bar-item';
+        item.innerHTML = `
+            <span class="score-bar-label">${dim.name}:</span>
+            <div class="score-bar-bg">
+                <div class="score-bar-fill" style="width: ${percent}%;"></div>
+            </div>
+            <span class="score-bar-value">${dim.score}分</span>
+            <span class="score-bar-desc">${desc}</span>
+        `;
+        // 确保在分数条渲染后再应用动画
+        setTimeout(() => {
+            item.querySelector('.score-bar-fill').style.width = percent + '%';
+        }, 100); 
+        
+        container.appendChild(item);
+    });
+}
+
+// 9. 重新测试
+function restartQuiz() {
+    // 切换回开始屏幕，并重置滚动条
+    startScreen.style.display = 'block';
+    resultScreen.style.display = 'none';
+    quizScreen.style.display = 'none';
+    window.scrollTo(0, 0); 
+}
+
+</script>
+
+</body>
+</html>
